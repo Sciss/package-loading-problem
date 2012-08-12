@@ -91,7 +91,7 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 
 隙間の総面積は15。
 
-![Alt blank=15 "N b J l"](package-loading-problem/blob/master/Answer1.png)
+![Alt blank=15 "N b J l"](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
 
 ### 解答.2
 
@@ -106,4 +106,4 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 
 隙間の総面積は3338。(制限時間1分で打ち切り)
 
-![Alt blank=3338 ""](package-loading-problem/blob/master/Answer2.png)
+![Alt blank=3338 ""](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)
