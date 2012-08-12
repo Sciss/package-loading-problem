@@ -16,6 +16,7 @@ recursive partitioning approach for the packing of different rectangles in a rec
 >        隙間の総面積を出力せよ。またそのときの並べ方を出力せよ。
 >
 > 名前 矩形幅 矩形高さ
+
     a 42 18
     b 35 1
     c 20 25
@@ -90,7 +91,7 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 
 隙間の総面積は15。
 
-![Alt blank=15 "N b J l"](package-loading-problem/master/Answer1.png)
+![Alt blank=15 "N b J l"](package-loading-problem/blob/master/Answer1.png)
 
 ### 解答.2
 
@@ -105,4 +106,4 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 
 隙間の総面積は3338。(制限時間1分で打ち切り)
 
-![Alt blank=3338 ""](package-loading-problem/master/Answer2.png)
+![Alt blank=3338 ""](package-loading-problem/blob/master/Answer2.png)
