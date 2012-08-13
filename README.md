@@ -85,8 +85,7 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
         import PLPFrame._
         val p = Packer(boxes)
         val res = p.run(50, 50, 1000)
-        val blank = res.map(x => x.area - x.filled).sum
-        println(blank)
+        res.get.show
         res.map(PLPFrame(_, 5))
 
 隙間の総面積は15。
@@ -100,10 +99,9 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
         import PLPFrame._
         val p = Packer(boxes)
         val res = p.run(200, 100, 60 * 1000)
-        val blank = res.map(x => x.area - x.filled).sum
-        println(blank)
+        res.get.show
         res.map(PLPFrame(_, 5))
 
-隙間の総面積は2435。(制限時間1分で打ち切り)
+隙間の総面積は1685。(制限時間1分で打ち切り)
 
-![Alt blank=2435 "z,i,C,L,b,t,N,B,M,l,T,g,Q,D,y,J,U,H,I"](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)
+![Alt blank=1685 "z,i,C,L,b,t,N,B,l,M,T,V,U,c,r,e,u,A,j,H,Z,I"](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)

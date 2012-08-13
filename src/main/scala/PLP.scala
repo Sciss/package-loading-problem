@@ -6,7 +6,7 @@ import scala.util.control.Exception.{ allCatch, catching }
 import System.{ currentTimeMillis => now }
 
 sealed trait Locatable {
-  val l, w, filled: Int
+  val l, w, filled, fixed: Int
   val area: Int = l * w
   def rotate = Plate(w, l, Plate(0, 0, Nil) :: this :: Nil)
   def shrink = this match {
@@ -43,6 +43,7 @@ object Locatable {
 case class Box(name: Symbol, l: Int, w: Int) extends Locatable {
   assert(l >= w)
   val filled = area
+  val fixed = area
 }
 
 implicit object Box extends Ordering[Box] {
@@ -55,22 +56,11 @@ case class Plate(l: Int, w: Int, blocks: Seq[Locatable]) extends Locatable {
   lazy val ratio: Double = if (area > 0) filled / area.toDouble else 0
   lazy val fixed: Int = blocks match {
     case Nil => 0
-    case (b1: Box) :: Nil => b1.area
-    case (b1: Plate) :: Nil => b1.fixed
-    case b1 :: (b2: Box) :: Nil =>
-      (l - b2.w) * b1.w + b2.l.max(b1.w) * b2.w
-    case b1 :: (b2: Plate) :: Nil =>
-      (l - b2.w) * b1.w + b2.fixed
-    case b1 :: b2 :: (b3: Box) :: Nil =>
-      (l - b2.w) * b1.w + (w - b3.w) * b2.w + b3.l.max(b2.w) * b3.w
-    case b1 :: b2 :: (b3: Plate) :: Nil =>
-      (l - b2.w) * b1.w + (w - b3.w) * b2.w + b3.fixed
-    case b1 :: b2 :: b3 :: (b4: Box) :: Nil =>
-      (l - b2.w) * b1.w + (w - b3.w) * b2.w + (l - b4.w) * b3.w + b4.l.max(b3.w) * b4.w
-    case b1 :: b2 :: b3 :: (b4: Plate) :: Nil =>
-      (l - b2.w) * b1.w + (w - b3.w) * b2.w + (l - b4.w) * b3.w + b4.fixed
-    case b1 :: b2 :: b3 :: b4 :: (b5: Box) :: Nil => area
-    case b1 :: b2 :: b3 :: b4 :: (b5: Plate) :: Nil => area - b5.area + b5.fixed
+    case b1 :: Nil => b1.fixed
+    case b1 :: b2 :: Nil => b1.fixed + b2.fixed
+    case b1 :: b2 :: b3 :: Nil => b1.area + b2.fixed + b3.fixed
+    case b1 :: b2 :: b3 :: b4 :: Nil => b1.area + b2.area + b3.fixed + b4.fixed
+    case b1 :: b2 :: b3 :: b4 :: b5 :: Nil => b1.area + b2.area + b3.area + b4.fixed + b5.fixed
   }
   def show() = println("area=%d, blank=%d, filled=%d, fill-ratio=%f, boxes=%s".format(
     area, area - filled, filled, ratio, Locatable.flatten(this).map(_.name).mkString(",")))
@@ -114,7 +104,7 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
     case b1 :: b2 :: b3 :: Nil => (w - b1.w, l - b3.l.max(b2.w))
     case b1 :: b2 :: b3 :: b4 :: Nil => (l - b2.w - b4.w, w - b1.w - b3.w)
   }
-  val chain: Box => FillContext = blocks match {
+  def chain: Box => FillContext = blocks match {
     case Nil => (b1: Box) =>
       FillContext(l, w, boxes - b1, Seq(b1), b => revert(b), b => short(b))
     case bs @ b1 :: Nil => (b2: Box) => {
