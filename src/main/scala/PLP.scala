@@ -13,6 +13,9 @@ sealed trait Locatable {
     case b: Box => b
     case p: Plate => Locatable.shrink(p.blocks)
   }
+  def concat(b: Locatable) =
+    if (b.area == 0) this
+    else Plate(l + b.w, w, this :: b :: Nil)
 }
 
 object Locatable {
@@ -30,6 +33,10 @@ object Locatable {
     case bs @ b1 :: b2 :: b3 :: b4 :: b5 :: Nil =>
       Plate((b1.l + b2.w).max(b3.l + b4.w).max(b2.w + b4.w + b5.l),
             (b2.l + b3.w).max(b4.l + b1.w).max(b1.w + b3.w + b5.w), bs)
+  }
+  def flatten(p: Locatable): Seq[Box] = p match {
+    case b: Box => b :: Nil
+    case b: Plate => b.blocks.flatMap(flatten)
   }
 }
 
@@ -65,8 +72,8 @@ case class Plate(l: Int, w: Int, blocks: Seq[Locatable]) extends Locatable {
     case b1 :: b2 :: b3 :: b4 :: (b5: Box) :: Nil => area
     case b1 :: b2 :: b3 :: b4 :: (b5: Plate) :: Nil => area - b5.area + b5.fixed
   }
-  def show() = println("area=%d, blank=%d, filled=%d, fill-ratio=%f, result=%s".format(
-    area, area - filled, filled, ratio, this))
+  def show() = println("area=%d, blank=%d, filled=%d, fill-ratio=%f, boxes=%s".format(
+    area, area - filled, filled, ratio, Locatable.flatten(this).map(_.name).mkString(",")))
 }
 
 implicit def pimpTreeSet(boxes: TreeSet[Box]) = new AnyRef {
@@ -111,21 +118,33 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
     case Nil => (b1: Box) =>
       FillContext(l, w, boxes - b1, Seq(b1), b => revert(b), b => short(b))
     case bs @ b1 :: Nil => (b2: Box) => {
-      val loc = stretchLocater(b2, bs)
-      FillContext(b1.w, l - b1.l - b2.w, boxes -- (b2 :: bs), Nil, chainRevert(loc), chainShort(loc))
+      val (nl, nw, loc) = (b1.w, l - b1.l - b2.w) match {
+        case (nl, nw) if nl >= nw => (nl, nw, stretchLocater(b2, bs))
+        case (nl, nw) => (nw, nl, stretchRotateLocater(b2, bs))
+      }
+      FillContext(nl, nw, boxes -- (b2 :: bs), Nil, chainRevert(loc), chainShort(loc))
     }
     case bs @ b1 :: b2 :: Nil => (b3: Box) => {
-      val loc = stretchLocater(b3, bs)
-      FillContext(b2.w, w - b2.l - b3.w, boxes -- (b3 :: bs), Nil, chainRevert(loc), chainShort(loc))
+      val (nl, nw, loc) = (b2.w, w - b2.l - b3.w) match {
+        case (nl, nw) if nl >= nw => (nl, nw, stretchLocater(b3, bs))
+        case (nl, nw) => (nw, nl, stretchRotateLocater(b3, bs))
+      }
+      FillContext(nl, nw, boxes -- (b3 :: bs), Nil, chainRevert(loc), chainShort(loc))
     }
     case bs @ b1 :: b2 :: b3 :: Nil => (b4: Box) => {
-      val loc = stretchLocater(b4, bs)
-      FillContext(b3.w, l - b3.l - b4.w, boxes -- (b4 :: bs), Nil, chainRevert(loc), chainShort(loc))
+      val (nl, nw, loc) = (b3.w, l - b3.l - b4.w) match {
+        case (nl, nw) if nl >= nw => (nl, nw, stretchLocater(b4, bs))
+        case (nl, nw) => (nw, nl, stretchRotateLocater(b4, bs))
+      }
+      FillContext(nl, nw, boxes -- (b4 :: bs), Nil, chainRevert(loc), chainShort(loc))
     }
     case bs @ b1 :: b2 :: b3 :: b4 :: Nil => (b5: Box) => {
-      val loc = stretchLocater(b5, bs)
+      val (nl, nw, loc) = (b4.w, w - b4.l - b1.w) match {
+        case (nl, nw) if nl >= nw => (nl, nw, stretchLocater(b5, bs))
+        case (nl, nw) => (nw, nl, stretchRotateLocater(b5, bs))
+      }
       val shrinked = Locatable.shrink compose loc
-      FillContext(b4.w, w - b4.l - b1.w, boxes -- (b5 :: bs), Nil, b => revert(shrinked(b)), chainShort(loc))
+      FillContext(nl, nw, boxes -- (b5 :: bs), Nil, b => revert(shrinked(b)), chainShort(loc))
     }
   }
   def chainRevert(locate: Locatable => Seq[Locatable]) =
@@ -133,10 +152,9 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
   def chainShort(locate: Locatable => Seq[Locatable]) =
     (b: Locatable) => short(Plate(l, w, locate(b)))
   def stretchLocater(p: Locatable, bs: Seq[Locatable]): Locatable => Seq[Locatable] =
-    (b: Locatable) => bs.init ++ Seq(concat(bs.last, b), p)
-  def concat(blast: Locatable, b: Locatable) =
-    if (b.area == 0) blast
-    else Plate(blast.l + b.w, blast.w, blast :: b :: Nil)
+    (b: Locatable) => bs.init ++ Seq(bs.last.concat(b), p)
+  def stretchRotateLocater(p: Locatable, bs: Seq[Locatable]): Locatable => Seq[Locatable] =
+    (b: Locatable) => bs.init ++ Seq(bs.last.concat(b.rotate), p)
   val filled = blocks.map(_.filled).sum
   val terminate = short(Plate(l, w, blocks))
   val interim = terminate.result
