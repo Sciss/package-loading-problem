@@ -205,9 +205,9 @@ case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
         case 'Wake =>
           for {
             ctx <- catching(classOf[NoSuchElementException]).opt(tasks.dequeue)
-            if ctx.predict > threshold
+            if ctx.predict >= threshold
             shift <- ctx.explode
-            if shift.predict > threshold
+            if shift.predict >= threshold
           } shift match {
             case x: DoneContext =>
               done.enqueue(x)
