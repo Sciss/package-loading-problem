@@ -88,9 +88,9 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
         res.get.show
         res.map(PLPFrame(_, 5))
 
-隙間の総面積は15。
+隙間の総面積は7。
 
-![Alt blank=15 N,b,J,l](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
+![Alt blank=7 W,y,r,e,A,Q,d,M,U,L](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
 
 ### 解答.2
 

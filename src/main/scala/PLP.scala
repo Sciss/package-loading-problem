@@ -8,14 +8,11 @@ import System.{ currentTimeMillis => now }
 sealed trait Locatable {
   val l, w, filled, fixed: Int
   val area: Int = l * w
+  val dead = fixed - filled
+  val predict = area - dead
   def rotate = Plate(w, l, Plate(0, 0, Nil) :: this :: Nil)
-  def shrink = this match {
-    case b: Box => b
-    case p: Plate => Locatable.shrink(p.blocks)
-  }
-  def concat(b: Locatable) =
-    if (b.area == 0) this
-    else Plate(l + b.w, w, this :: b :: Nil)
+  def shrink: Locatable
+  def concat(b: Locatable) = if (b.area == 0) this else Locatable.shrink(this :: b :: Nil)
 }
 
 object Locatable {
@@ -23,7 +20,7 @@ object Locatable {
     case Nil => Plate(0, 0, Nil)
     case b1 :: Nil => b1
     case bs @ b1 :: b2 :: Nil =>
-      Plate((b1.l + b2.w).max(b2.w), b2.l.max(b1.w).max(b1.w), bs)
+      Plate(b1.l + b2.w, b2.l.max(b1.w), bs)
     case bs @ b1 :: b2 :: b3 :: Nil =>
       Plate((b1.l + b2.w).max(b3.l).max(b2.w),
             (b2.l + b3.w).max(b1.w).max(b1.w + b3.w), bs)
@@ -44,6 +41,7 @@ case class Box(name: Symbol, l: Int, w: Int) extends Locatable {
   assert(l >= w)
   val filled = area
   val fixed = area
+  def shrink: Locatable = this
 }
 
 implicit object Box extends Ordering[Box] {
@@ -54,16 +52,12 @@ implicit object Box extends Ordering[Box] {
 case class Plate(l: Int, w: Int, blocks: Seq[Locatable]) extends Locatable {
   lazy val filled: Int = blocks./:(0)(_ + _.filled)
   lazy val ratio: Double = if (area > 0) filled / area.toDouble else 0
-  lazy val fixed: Int = blocks match {
-    case Nil => 0
-    case b1 :: Nil => b1.fixed
-    case b1 :: b2 :: Nil => b1.fixed + b2.fixed
-    case b1 :: b2 :: b3 :: Nil => b1.area + b2.fixed + b3.fixed
-    case b1 :: b2 :: b3 :: b4 :: Nil => b1.area + b2.area + b3.fixed + b4.fixed
-    case b1 :: b2 :: b3 :: b4 :: b5 :: Nil => b1.area + b2.area + b3.area + b4.fixed + b5.fixed
-  }
-  def show() = println("area=%d, blank=%d, filled=%d, fill-ratio=%f, boxes=%s".format(
-    area, area - filled, filled, ratio, Locatable.flatten(this).map(_.name).mkString(",")))
+  lazy val fixed: Int = 
+    if (blocks.isEmpty) 0
+    else blocks.init.map(_.area).sum + blocks.lastOption.map(_.fixed).sum
+  def shrink: Locatable = Locatable.shrink(blocks)
+  def show() = println("area=%d, predict=%d, filled=%d, blank=%d, fill-ratio=%f, boxes=%s".format(
+    area, predict, filled, area - filled, ratio, Locatable.flatten(this).map(_.name).mkString(",")))
 }
 
 implicit def pimpTreeSet(boxes: TreeSet[Box]) = new AnyRef {
@@ -94,7 +88,7 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
                        revert: Locatable => Context, short: Locatable => DoneContext) extends Context {
   def explode: Seq[Context] =
     boxes.filter(b => b.l <= spiralArea._1 && b.w <= spiralArea._2).toSeq match {
-      case Nil => revert(Locatable.shrink(blocks)) :: Nil
+      case Nil => revert(Plate.apply(l, w, blocks)) :: Nil
       case bs => bs.map(chain)
     }
   lazy val spiralArea = blocks match {
@@ -155,24 +149,16 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
                   short compose Locatable.shrink compose p5locator)
     }
   }
-  def chainRevert(locate: Locatable => Seq[Locatable]) =
-    (b: Locatable) => { val bs = locate(b); FillContext(l, w, boxes -- bs, bs, revert, short) }
-  def chainShort(locate: Locatable => Seq[Locatable]) =
-    (b: Locatable) => short(Plate(l, w, locate(b)))
   val filled = blocks.map(_.filled).sum
   val done = short(Locatable.shrink(blocks))
   val interim = done.result
   val priority = interim.filled
-  // val priority = if (interim.fixed > 0) interim.filled / interim.fixed else 0
-  val predict = interim.area - interim.fixed + interim.filled
+  val predict = interim.predict
 }
 
 implicit object FillContext extends Ordering[FillContext] {
   def apply(l: Int, w: Int, boxes: TreeSet[Box]) = {
-    val short = (result: Locatable) => result match {
-      case b: Plate => DoneContext(l, w, boxes - b, b)
-      case b: Box => DoneContext(l, w, boxes - b, Plate(l, w, b :: Nil))
-    }
+    val short = (b: Locatable) => DoneContext(l, w, boxes - b, Plate(l, w, b :: Nil))
     new FillContext(l, w, boxes, Nil, short, short)
   }
   def compare(x: FillContext, y: FillContext) =
@@ -226,18 +212,15 @@ case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
             case x: DoneContext =>
               done.enqueue(x)
               if (loglevel == 0) print("!")
-              else println("Done(%d): %f, %d, %d, %s".format(
-                tasks.length, x.result.ratio, x.l, x.w, x.result))
+              else println("Done(%d): %d, %s".format(tasks.length, x.result.filled, x.result))
             case x: FillContext if x.interim.filled > threshold =>
               done.enqueue(x.done)
               tasks.enqueue(x)
               if (loglevel == 0) print(".")
-              else println("Fill(%d): %f, %d, %d, %s".format(
-                tasks.length, x.interim.ratio, x.l, x.w, x.interim))
+              else println("Interim(%d): %d, %s".format(tasks.length, x.interim.filled, x.interim))
             case x: FillContext =>
               tasks.enqueue(x)
-              if (loglevel > 1) println("Fill(%d): %f, %d, %d, %s".format(
-                tasks.length, x.interim.ratio, x.l, x.w, x.interim))
+              if (loglevel > 1) println("Fill(%d): %d, %s".format(tasks.length, x.interim.filled, x.interim))
           }
           self ! 'Wake
         case 'End => exit
