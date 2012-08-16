@@ -44,7 +44,7 @@ case class Box(name: Symbol, l: Int, w: Int) extends Locatable {
 
 implicit object Box extends Ordering[Box] {
   def apply(name: Char, l: Int, w: Int) = new Box(Symbol(name.toString), l.max(w), l.min(w))
-  def compare(x: Box, y: Box) = if (x.filled < y.filled) -1 else if (x.filled > y.filled) 1 else 0
+  def compare(x: Box, y: Box) = (x.filled - y.filled).signum
 }
 
 case class Plate(l: Int, w: Int, blocks: Seq[Locatable]) extends Locatable {
@@ -54,8 +54,8 @@ case class Plate(l: Int, w: Int, blocks: Seq[Locatable]) extends Locatable {
     if (blocks.isEmpty) 0
     else blocks.init.map(_.area).sum + blocks.lastOption.map(_.fixed).sum
   def shrink: Locatable = Locatable.shrink(blocks)
-  def show() = println("area=%d, predict=%d, filled=%d, blank=%d, fill-ratio=%f, boxes=%s".format(
-    area, predict, filled, area - filled, ratio, Locatable.flatten(this).map(_.name).mkString(",")))
+  def stat: String = "area=%d, predict=%d, filled=%d, blank=%d, fill-ratio=%f, boxes=%s".format(
+    area, predict, filled, area - filled, ratio, Locatable.flatten(this).map(_.name).mkString(","))
 }
 
 implicit def pimpTreeSet(boxes: TreeSet[Box]) = new AnyRef {
@@ -119,10 +119,9 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
   }
   def shiftRevert(bl: Int, bw: Int, bs: TreeSet[Box], ps: Seq[Locatable], locator: Locatable => Seq[Locatable]) =
     shift(bl, bw, bs, ps, locator, revert compose Locatable.shrink)
-  val filled = blocks.map(_.filled).sum
   val done = short(Locatable.shrink(blocks))
   val interim = done.result
-  val priority = interim.filled
+  val priority, filled = interim.filled
   val predict = interim.predict
 }
 
@@ -131,8 +130,7 @@ implicit object FillContext extends Ordering[FillContext] {
     val short = (b: Locatable) => DoneContext(l, w, boxes - b, Plate(l, w, b :: Nil))
     new FillContext(l, w, boxes, Nil, short, short)
   }
-  def compare(x: FillContext, y: FillContext) =
-    if (x.priority > y.priority) -1 else if (x.priority < y.priority) 1 else 0
+  def compare(x: FillContext, y: FillContext) = (y.priority - x.priority).signum
 }
 
 case class DoneContext(l: Int, w: Int, boxes: TreeSet[Box], result: Plate) extends Context {
@@ -142,8 +140,7 @@ case class DoneContext(l: Int, w: Int, boxes: TreeSet[Box], result: Plate) exten
 }
 
 implicit object DoneContext extends Ordering[DoneContext] {
-  def compare(x: DoneContext, y: DoneContext) =
-    if (x.result.filled > y.result.filled) -1 else if (x.result.filled < y.result.filled) 1 else 0
+  def compare(x: DoneContext, y: DoneContext) = (y.filled - x.filled).signum
 }
 
 case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
@@ -165,8 +162,7 @@ case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
     finally { workers.foreach(_ ! 'End) }
     println("\n" + "task: remains=%d (head priority=%d, predict=%d)".format(
       tasks.size, tasks.headOption.map(_.priority).sum, tasks.headOption.map(_.predict).sum))
-    println("best: filled=%d, ratio=%f, %s".format(
-      best.map(_.filled).sum, best.map(_.ratio).sum, best.map(_.blocks)))
+    println("best: " + best.map(_.stat).getOrElse("None"))
     best
   }
   def worker(n: Int, timeout: Long) = actor {
@@ -182,15 +178,15 @@ case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
             case x: DoneContext =>
               done.enqueue(x)
               if (loglevel == 0) print("!")
-              else println("Done(%d): %d, %s".format(tasks.length, x.result.filled, x.result))
-            case x: FillContext if x.interim.filled > threshold =>
+              else println("Done(%d): %d, %s".format(tasks.length, x.filled, x.result))
+            case x: FillContext if x.filled > threshold =>
               done.enqueue(x.done)
               tasks.enqueue(x)
               if (loglevel == 0) print(".")
-              else println("Interim(%d): %d, %s".format(tasks.length, x.interim.filled, x.interim))
+              else println("Interim(%d): %d, %s".format(tasks.length, x.filled, x.interim))
             case x: FillContext =>
               tasks.enqueue(x)
-              if (loglevel > 1) println("Fill(%d): %d, %s".format(tasks.length, x.interim.filled, x.interim))
+              if (loglevel > 1) println("Fill(%d): %d, %s".format(tasks.length, x.filled, x.interim))
           }
           self ! 'Wake
         case 'End => exit
@@ -206,7 +202,7 @@ override def main(args: Array[String]): Unit = {
     case Array(l, w, timeout) => packer.run(l, w, timeout)
     case Array(l, w, timeout, multiplicity) => packer.run(l, w, timeout, multiplicity)
     case _ => { System.err.println("Error: Invalid args."); None }
-  }.map(_.show)
+  }
 }
 
 lazy val boxes = TreeSet(('a' to 'z') ++ ('A' to 'Z') zip List(
