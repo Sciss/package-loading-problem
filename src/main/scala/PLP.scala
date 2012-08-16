@@ -1,9 +1,8 @@
 object PLP extends App {
 import collection.immutable.TreeSet
-import scala.collection.mutable.SynchronizedPriorityQueue
 import scala.actors.Actor._
+import scala.collection.mutable.SynchronizedPriorityQueue
 import scala.util.control.Exception.{ allCatch, catching }
-import System.{ currentTimeMillis => now }
 
 sealed trait Locatable {
   val l, w, filled, fixed: Int
@@ -39,8 +38,7 @@ object Locatable {
 
 case class Box(name: Symbol, l: Int, w: Int) extends Locatable {
   assert(l >= w)
-  val filled = area
-  val fixed = area
+  val filled, fixed = area
   def shrink: Locatable = this
 }
 
@@ -87,11 +85,11 @@ sealed trait Context {
 case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatable],
                        revert: Locatable => Context, short: Locatable => DoneContext) extends Context {
   def explode: Seq[Context] =
-    boxes.filter(b => b.l <= spiralArea._1 && b.w <= spiralArea._2).toSeq match {
+    boxes.filter(b => b.l <= space._1 && b.w <= space._2).toSeq match {
       case Nil => revert(Plate.apply(l, w, blocks)) :: Nil
       case bs => bs.map(chain)
     }
-  lazy val spiralArea = blocks match {
+  lazy val space = blocks match {
     case Nil => (l, w)
     case p1 :: Nil => (w, l - p1.l)
     case p1 :: p2 :: Nil => (l, w - p2.l.max(p1.w))
@@ -99,56 +97,28 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
     case p1 :: p2 :: p3 :: (b4: Box) :: Nil => (b4.w, w - b4.l - p1.w)
     case p1 :: p2 :: p3 :: (p4: Plate) :: Nil => (l - p2.w - p4.w, w - p1.w - p3.w)
   }
-  def chain: Box => FillContext = blocks match {
-    case Nil => (b1: Box) => {
+  lazy val chain: Box => FillContext = blocks match {
+    case Nil => (b1: Box) =>
       FillContext(l, w, boxes - b1, Seq(b1), revert, short)
-    }
-    case bs @ b1 :: Nil => (b2: Box) => {
-      val (p1l, p1w, p1locator) = (b1.w, l - b1.l - b2.w) match {
-        case (p1l, p1w) if p1l >= p1w => (p1l, p1w, (p1: Locatable) => Seq(b1 concat p1, b2))
-        case (p1l, p1w) => (p1w, p1l, (p1: Locatable) => Seq(b1 concat p1.rotate, b2))
-      }
-      FillContext(p1l, p1w, boxes -- bs - b2, Nil,
-                  ((p1b2: Seq[Locatable]) => FillContext(l, w, boxes -- p1b2, p1b2, revert, short)) compose p1locator,
-                  short compose Locatable.shrink compose p1locator)
-    }
-    case bs @ p1 :: b2 :: Nil => (b3: Box) => {
-      val (p2l, p2w, p2locator) = (b2.w, w - b2.l - b3.w) match {
-        case (p2l, p2w) if p2l >= p2w => (p2l, p2w, (p2: Locatable) => Seq(p1, b2 concat p2, b3))
-        case (p2l, p2w) => (p2w, p2l, (p2: Locatable) => Seq(p1, b2 concat p2.rotate, b3))
-      }
-      FillContext(p2l, p2w, boxes -- bs - b3, Nil,
-                  ((p1p2b3: Seq[Locatable]) => FillContext(l, w, boxes -- p1p2b3, p1p2b3, revert, short)) compose p2locator,
-                  short compose Locatable.shrink compose p2locator)
-    }
-    case bs @ p1 :: p2 :: b3 :: Nil => (b4: Box) => {
-      val (p3l, p3w, p3locator) = (b3.w, l - b3.l - b4.w) match {
-        case (p3l, p3w) if p3l >= p3w => (p3l, p3w, (p3: Locatable) => Seq(p1, p2, b3 concat p3, b4))
-        case (p3l, p3w) => (p3w, p3l, (p3: Locatable) => Seq(p1, p2, b3 concat p3.rotate, b4))
-      }
-      FillContext(p3l, p3w, boxes -- bs - b4, Nil,
-                  ((p1p2p3b4: Seq[Locatable]) => FillContext(l, w, boxes -- p1p2p3b4, p1p2p3b4, revert, short)) compose p3locator,
-                  short compose Locatable.shrink compose p3locator)
-    }
-    case bs @ p1 :: p2 :: p3 :: (b4: Box) :: Nil => (p4: Box) => {
-      val (p4l, p4w, p4locator) = (spiralArea._1, spiralArea._2) match {
-        case (p4l, p4w) if p4l >= p4w => (p4l, p4w, (p4: Locatable) => Seq(p1, p2, p3, b4 concat p4))
-        case (p4l, p4w) => (p4w, p4l, (p4: Locatable) => Seq(p1, p2, p3, b4 concat p4.rotate))
-      }
-      FillContext(p4l, p4w, boxes -- bs - p4, Seq(p4),
-                  ((p1p2p3p4: Seq[Locatable]) => FillContext(l, w, boxes -- p1p2p3p4, p1p2p3p4, revert, short)) compose p4locator,
-                  short compose Locatable.shrink compose p4locator)
-    }
-    case bs @ p1 :: p2 :: p3 :: (p4: Plate) :: Nil => (b5: Box) => {
-      val (p5l, p5w, p5locator) = (spiralArea._1, spiralArea._2) match {
-        case (p5l, p5w) if p5l >= p5w => (p5l, p5w, (p5: Locatable) => Seq(p1, p2, p3, p4, p5))
-        case (p5l, p5w) => (p5w, p5l, (p5: Locatable) => Seq(p1, p2, p3, p4, p5.rotate))
-      }
-      FillContext(p5l, p5w, boxes -- bs - b5, Seq(b5),
-                  revert compose Locatable.shrink compose p5locator,
-                  short compose Locatable.shrink compose p5locator)
-    }
+    case bs @ b1 :: Nil => (b2: Box) =>
+      shift(b1.w, l - b1.l - b2.w, boxes -- bs - b2, Nil, (p1: Locatable) => Seq(b1 concat p1, b2))
+    case bs @ p1 :: b2 :: Nil => (b3: Box) =>
+      shift(b2.w, w - b2.l - b3.w, boxes -- bs - b3, Nil, (p2: Locatable) => Seq(p1, b2 concat p2, b3))
+    case bs @ p1 :: p2 :: b3 :: Nil => (b4: Box) =>
+      shift(b3.w, l - b3.l - b4.w, boxes -- bs - b4, Nil, (p3: Locatable) => Seq(p1, p2, b3 concat p3, b4))
+    case bs @ p1 :: p2 :: p3 :: (b4: Box) :: Nil => (p4: Box) =>
+      shift(space._1, space._2, boxes -- bs - p4, Seq(p4), (p4: Locatable) => Seq(p1, p2, p3, b4 concat p4))
+    case bs @ p1 :: p2 :: p3 :: (p4: Plate) :: Nil => (b5: Box) =>
+      shiftRevert(space._1, space._2, boxes -- bs - b5, Seq(b5), (p5: Locatable) => Seq(p1, p2, p3, p4, p5))
   }
+  val cons = (bs: Seq[Locatable]) => FillContext(l, w, boxes -- bs, bs, revert, short)
+  def shift(bl: Int, bw: Int, bs: TreeSet[Box], ps: Seq[Locatable],
+            locator: Locatable => Seq[Locatable], cons: Seq[Locatable] => Context=cons) = {
+    val (pl, pw, relocator) = if (bl >= bw) (bl, bw, locator) else (bw, bl, locator compose ((b: Locatable) => b.rotate))
+    FillContext(pl, pw, bs, Nil, cons compose relocator, short compose Locatable.shrink compose relocator)
+  }
+  def shiftRevert(bl: Int, bw: Int, bs: TreeSet[Box], ps: Seq[Locatable], locator: Locatable => Seq[Locatable]) =
+    shift(bl, bw, bs, ps, locator, revert compose Locatable.shrink)
   val filled = blocks.map(_.filled).sum
   val done = short(Locatable.shrink(blocks))
   val interim = done.result
@@ -199,7 +169,7 @@ case class Packer(boxes: TreeSet[Box], var loglevel: Int=0) {
       best.map(_.filled).sum, best.map(_.ratio).sum, best.map(_.blocks)))
     best
   }
-  def worker(n: Int, timeout: Long) = actor{
+  def worker(n: Int, timeout: Long) = actor {
     loop {
       react {
         case 'Wake =>

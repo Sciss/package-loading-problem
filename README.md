@@ -90,7 +90,7 @@ Scala 2.9.1.final (OpenJDK Server VM, Java 1.6.0_24).
 
 隙間の総面積は7。
 
-![Alt blank=7 W,y,r,e,A,Q,d,M,U,L](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
+![blank=7 W,y,r,e,A,Q,d,M,U,L](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
 
 ### 解答.2 (Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz)
 
@@ -104,10 +104,16 @@ Scala 2.9.1.final (OpenJDK Server VM, Java 1.6.0_24).
 
 隙間の総面積は794。(約3秒で収束)
 
-![Alt blank=794 N,i,a,H,b,z,x,M,T,V,m,d,l,k,j,L,t,S,Y,I,r,u,A](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)
+![blank=794 N,i,a,H,b,z,x,M,T,V,m,d,l,k,j,L,t,S,Y,I,r,u,A](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)
 
 ### 解答.2 (Intel(R) Core(TM)2 Quad CPU Q6700 @ 2.66GHz with limit 60 second)
 
 隙間の総面積は700。
 
-![Alt blank=700 N,i,a,H,L,z,x,l,T,V,t,P,j,b,Z,D,R,M,d,Y,I,r,A,e](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-Core2QuadQ6700@2.66GHz.png)
+![blank=700 N,i,a,H,L,z,x,l,T,V,t,P,j,b,Z,D,R,M,d,Y,I,r,A,e](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-Core2QuadQ6700@2.66GHz.png)
+
+### 解答.2 BEST
+
+隙間の総面積は696。
+
+![blank=696 N,i,a,H,b,z,d,A,M,Z,u,l,G,p,C,O,y,r,U,V,E,D,j,g,L,R](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-best.png)
