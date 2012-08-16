@@ -101,15 +101,15 @@ case class FillContext(l: Int, w: Int, boxes: TreeSet[Box], blocks: Seq[Locatabl
     case Nil => (b1: Box) =>
       FillContext(l, w, boxes - b1, Seq(b1), revert, short)
     case bs @ b1 :: Nil => (b2: Box) =>
-      shift(b1.w, l - b1.l - b2.w, boxes -- bs - b2, Nil, (p1: Locatable) => Seq(b1 concat p1, b2))
+      shift(b1.w, l - b1.l - b2.w, boxes -- bs - b2, Nil, p1 => Seq(b1 concat p1, b2))
     case bs @ p1 :: b2 :: Nil => (b3: Box) =>
-      shift(b2.w, w - b2.l - b3.w, boxes -- bs - b3, Nil, (p2: Locatable) => Seq(p1, b2 concat p2, b3))
+      shift(b2.w, w - b2.l - b3.w, boxes -- bs - b3, Nil, p2 => Seq(p1, b2 concat p2, b3))
     case bs @ p1 :: p2 :: b3 :: Nil => (b4: Box) =>
-      shift(b3.w, l - b3.l - b4.w, boxes -- bs - b4, Nil, (p3: Locatable) => Seq(p1, p2, b3 concat p3, b4))
+      shift(b3.w, l - b3.l - b4.w, boxes -- bs - b4, Nil, p3 => Seq(p1, p2, b3 concat p3, b4))
     case bs @ p1 :: p2 :: p3 :: (b4: Box) :: Nil => (p4: Box) =>
-      shift(space._1, space._2, boxes -- bs - p4, Seq(p4), (p4: Locatable) => Seq(p1, p2, p3, b4 concat p4))
+      shift(space._1, space._2, boxes -- bs - p4, Seq(p4), p4 => Seq(p1, p2, p3, b4 concat p4))
     case bs @ p1 :: p2 :: p3 :: (p4: Plate) :: Nil => (b5: Box) =>
-      shiftRevert(space._1, space._2, boxes -- bs - b5, Seq(b5), (p5: Locatable) => Seq(p1, p2, p3, p4, p5))
+      shiftRevert(space._1, space._2, boxes -- bs - b5, Seq(b5), p5 => Seq(p1, p2, p3, p4, p5))
   }
   val cons = (bs: Seq[Locatable]) => FillContext(l, w, boxes -- bs, bs, revert, short)
   def shift(bl: Int, bw: Int, bs: TreeSet[Box], ps: Seq[Locatable],
