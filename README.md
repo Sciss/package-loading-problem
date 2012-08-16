@@ -76,7 +76,7 @@ Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz
 
 Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 i386 GNU/Linux
 
-2.9.1.final (OpenJDK Server VM, Java 1.6.0_24).
+Scala 2.9.1.final (OpenJDK Server VM, Java 1.6.0_24).
 
 ### 解答.1
 
@@ -92,7 +92,7 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 
 ![Alt blank=7 W,y,r,e,A,Q,d,M,U,L](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer1.png)
 
-### 解答.2
+### 解答.2 (Intel(R) Core(TM) i5-2520M CPU @ 2.50GHz)
 
     scala>
         import PLP._
@@ -105,3 +105,9 @@ Linux 3.2.0-27-generic-pae #43-Ubuntu SMP Fri Jul 6 15:06:05 UTC 2012 i686 i686 
 隙間の総面積は794。(約3秒で収束)
 
 ![Alt blank=794 N,i,a,H,b,z,x,M,T,V,m,d,l,k,j,L,t,S,Y,I,r,u,A](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2.png)
+
+### 解答.2 (Intel(R) Core(TM)2 Quad CPU Q6700 @ 2.66GHz with limit 60 second)
+
+隙間の総面積は700。
+
+![Alt blank=700 N,i,a,H,L,z,x,l,T,V,t,P,j,b,Z,D,R,M,d,Y,I,r,A,e](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-Core2QuadQ6700@2.66GHz.png)
