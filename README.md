@@ -114,6 +114,6 @@ Scala 2.9.1.final (OpenJDK Server VM, Java 1.6.0_24).
 
 ### 解答.2 BEST
 
-隙間の総面積は507。
+隙間の総面積は484。
 
-![blank=507 N,i,a,H,b,z,q,M,y,X,K,O,c,k,l,D,V,E,J,f,n,L,e,u,o,W,A](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-best.png)
+![blank=484 N,i,a,H,L,z,q,M,y,X,K,D,r,A,O,d,T,B,f,J,c,b,e,u,o,W,l](https://raw.github.com/tono-nakae/package-loading-problem/master/Answer2-best.png)
