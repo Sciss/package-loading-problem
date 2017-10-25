@@ -1,4 +1,7 @@
-forked from [here](https://github.com/tonosaman/package-loading-problem). Original read-me below:
+Forked from [here](https://github.com/tonosaman/package-loading-problem).
+I moved this from Scala 2.9.x to 2.12.x. I added the `PackImages` application.
+
+Original read-me below:
 
 package-loading-problem
 =======================

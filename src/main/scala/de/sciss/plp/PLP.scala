@@ -149,19 +149,21 @@ object PLP {
     def compare(x: DoneContext, y: DoneContext): Int = (y.filled - x.filled).signum
   }
   
-  case class Packer(boxes: SortedSet[Box], var logLevel: Int=0) {
+  case class Packer(boxes: SortedSet[Box], var logLevel: Int = 0) {
     val tasks: mutable.PriorityQueue[FillContext] = new SynchronizedPriorityQueue[FillContext]()(implicitly[Ordering[FillContext]].reverse)
     val done : mutable.PriorityQueue[DoneContext] = new SynchronizedPriorityQueue[DoneContext]()(implicitly[Ordering[DoneContext]].reverse)
     def best: Option[Plate] = done.headOption.map(_.result)
     def threshold: Int = best.map(_.filled).sum
-    def run(l: Int, w: Int, timeout: Long=60*1000, multiplicity: Int=10): Option[Plate] = {
+
+    def run(l: Int, w: Int, timeout: Long = 60L * 1000, multiplicity: Int = 10): Option[Plate] = {
       tasks.clear
       done.clear
       tasks.enqueue(FillContext(l, w, boxes))
       cont(timeout, multiplicity)
     }
-    def cont(timeout: Long=1000, multiplicity: Int=10, _loglevel: Int=logLevel): Option[Plate] = {
-      logLevel = _loglevel
+
+    def cont(timeout: Long = 1000, multiplicity: Int = 10, _logLevel: Int = logLevel): Option[Plate] = {
+      logLevel = _logLevel
       val workers = (0 to multiplicity).map(worker(_, timeout))
       workers.foreach(_ ! 'Wake)
       try { Thread.sleep(timeout) }
