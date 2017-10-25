@@ -4,7 +4,7 @@ import java.awt.{ Frame, Graphics, Color }
 import java.awt.event.{ WindowEvent, WindowAdapter }
 import PLP.{ Plate, Locatable, Box }
 
-final class PLPFrame(val b: Locatable, val scale: Int = 5) extends Frame {
+final class PLPFrame(val b: Locatable, val scale: Int = 5, allowRotation: Boolean = true) extends Frame {
   override def paint(g: Graphics): Unit = drawOps.foreach(_(g))
 
   val tab = 10
@@ -17,17 +17,18 @@ final class PLPFrame(val b: Locatable, val scale: Int = 5) extends Frame {
     def next: Graphics => Unit = { val x = st.head; st = st.tail; x }
     var st: Stream[Graphics => Unit] = rotation
     lazy val rotation: Stream[Graphics => Unit] =
-      ((g: Graphics) => g.setColor(Color.red)) #::
-      ((g: Graphics) => g.setColor(Color.blue)) #::
+      ((g: Graphics) => g.setColor(Color.red    )) #::
+      ((g: Graphics) => g.setColor(Color.blue   )) #::
       ((g: Graphics) => g.setColor(Color.magenta)) #::
-      ((g: Graphics) => g.setColor(Color.orange)) #::
-      ((g: Graphics) => g.setColor(Color.pink)) #::
-      ((g: Graphics) => g.setColor(Color.green)) #::
-      ((g: Graphics) => g.setColor(Color.cyan)) #:: rotation
+      ((g: Graphics) => g.setColor(Color.orange )) #::
+      ((g: Graphics) => g.setColor(Color.pink   )) #::
+      ((g: Graphics) => g.setColor(Color.green  )) #::
+      ((g: Graphics) => g.setColor(Color.cyan   )) #:: rotation
   }
 
-  def draw(b: Locatable, x: Int, y: Int, rot: Boolean=false): Seq[(Graphics) => Unit] = b match {
+  def draw(b: Locatable, x: Int, y: Int, rot: Boolean = false): Seq[(Graphics) => Unit] = b match {
     case Box(name, l, w) if rot =>
+      println(s"Rotated: $name")
       List(Colors.next,
            (g: Graphics) => g.fillRect(x * scale, y * scale, w * scale, l * scale),
            (g: Graphics) => g.setColor(Color.black),
@@ -52,9 +53,9 @@ final class PLPFrame(val b: Locatable, val scale: Int = 5) extends Frame {
     case Plate(l, w, bs) =>
       bs.zip{ List(
         (b: Locatable) => draw(b, x, y, rot),
-        (b: Locatable) => draw(b, x + l - b.w, y, !rot),
+        (b: Locatable) => draw(b, x + l - b.w, y, !rot && allowRotation),
         (b: Locatable) => draw(b, x + l - b.l, y + w - b.w, rot),
-        (b: Locatable) => draw(b, x, y + w - b.l, !rot),
+        (b: Locatable) => draw(b, x, y + w - b.l, !rot && allowRotation),
         (b: Locatable) => draw(b, x + bs(3).w, y + bs(0).w, rot))
       }.flatMap{ case (b0, f) => f(b0) }
   }

@@ -1,5 +1,7 @@
 package de.sciss.plp
   
+import java.awt.EventQueue
+
 import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 
 import scala.collection.immutable.SortedSet
@@ -14,7 +16,9 @@ object PLP {
     val area: Int = l * w
     val dead: Int = fixed - filled
     val predict: Int = area - dead
-    def rotate = Plate(w, l, Plate(0, 0, Nil) :: this :: Nil)
+    def rotate: Locatable = {
+      Plate(w, l, Plate(0, 0, Nil) :: this :: Nil)
+    }
     def shrink: Locatable
     def concat(b: Locatable): Locatable = if (b.area == 0) this else Locatable.shrink(this :: b :: Nil)
   }
@@ -88,7 +92,8 @@ object PLP {
   }
   
   case class FillContext(l: Int, w: Int, boxes: SortedSet[Box], blocks: Seq[Locatable],
-                         revert: Locatable => Context, short: Locatable => DoneContext) extends Context {
+                         revert: Locatable => Context, short: Locatable => DoneContext,
+                         allowRotation: Boolean) extends Context {
     def explode: Seq[Context] =
       boxes.filter(b => b.l <= space._1 && b.w <= space._2).toSeq match {
         case Nil => revert(Plate.apply(l, w, blocks)) :: Nil
@@ -104,7 +109,7 @@ object PLP {
     }
     lazy val chain: Box => FillContext = blocks match {
       case Nil => (b1: Box) =>
-        FillContext(l, w, boxes - b1, Seq(b1), revert, short)
+        FillContext(l, w, boxes - b1, Seq(b1), revert, short, allowRotation = allowRotation)
       case bs @ b1 :: Nil => (b2: Box) =>
         shift(b1.w, l - b1.l - b2.w, boxes -- bs - b2, Nil, p1 => Seq(b1 concat p1, b2))
       case bs @ p1 :: b2 :: Nil => (b3: Box) =>
@@ -116,12 +121,20 @@ object PLP {
       case bs @ p1 :: p2 :: p3 :: (p4: Plate) :: Nil => (b5: Box) =>
         shiftRevert(space._1, space._2, boxes -- bs - b5, Seq(b5), p5 => Seq(p1, p2, p3, p4, p5))
     }
-    val cons: (Seq[Locatable]) => FillContext = (bs: Seq[Locatable]) => FillContext(l, w, boxes -- bs, bs, revert, short)
+    val cons: (Seq[Locatable]) => FillContext = (bs: Seq[Locatable]) =>
+      FillContext(l, w, boxes -- bs, bs, revert, short, allowRotation = allowRotation)
+
     def shift(bl: Int, bw: Int, bs: SortedSet[Box], ps: Seq[Locatable],
-              locator: Locatable => Seq[Locatable], cons: Seq[Locatable] => Context=cons): FillContext = {
-      val (pl, pw, relocator) = if (bl >= bw) (bl, bw, locator) else (bw, bl, locator compose ((b: Locatable) => b.rotate))
-      FillContext(pl, pw, bs, Nil, cons compose relocator, short compose Locatable.shrink compose relocator)
+              locator: Locatable => Seq[Locatable], cons: Seq[Locatable] => Context = cons): FillContext = {
+      val (pl, pw, relocator) = if (bl >= bw || !allowRotation)
+        (bl, bw, locator)
+      else
+        (bw, bl, locator compose ((b: Locatable) => b.rotate))
+
+      FillContext(pl, pw, bs, Nil, cons compose relocator,
+        short compose Locatable.shrink compose relocator, allowRotation = allowRotation)
     }
+
     def shiftRevert(bl: Int, bw: Int, bs: SortedSet[Box], ps: Seq[Locatable], locator: Locatable => Seq[Locatable]): FillContext =
       shift(bl, bw, bs, ps, locator, revert compose Locatable.shrink)
     val done = short(Locatable.shrink(blocks))
@@ -132,9 +145,9 @@ object PLP {
   }
   
   implicit object FillContext extends Ordering[FillContext] {
-    def apply(l: Int, w: Int, boxes: SortedSet[Box]): FillContext = {
+    def apply(l: Int, w: Int, boxes: SortedSet[Box], allowRotation: Boolean): FillContext = {
       val short = (b: Locatable) => DoneContext(l, w, boxes - b, Plate(l, w, b :: Nil))
-      new FillContext(l, w, boxes, Nil, short, short)
+      new FillContext(l, w, boxes, Nil, short, short, allowRotation = allowRotation)
     }
     def compare(x: FillContext, y: FillContext): Int = (y.priority - x.priority).signum
   }
@@ -149,16 +162,16 @@ object PLP {
     def compare(x: DoneContext, y: DoneContext): Int = (y.filled - x.filled).signum
   }
   
-  case class Packer(boxes: SortedSet[Box], var logLevel: Int = 0) {
+  case class Packer(boxes: SortedSet[Box], var logLevel: Int = 0, allowRotation: Boolean = true) {
     val tasks: mutable.PriorityQueue[FillContext] = new SynchronizedPriorityQueue[FillContext]()(implicitly[Ordering[FillContext]].reverse)
     val done : mutable.PriorityQueue[DoneContext] = new SynchronizedPriorityQueue[DoneContext]()(implicitly[Ordering[DoneContext]].reverse)
     def best: Option[Plate] = done.headOption.map(_.result)
     def threshold: Int = best.map(_.filled).sum
 
     def run(l: Int, w: Int, timeout: Long = 60L * 1000, multiplicity: Int = 10): Option[Plate] = {
-      tasks.clear
-      done.clear
-      tasks.enqueue(FillContext(l, w, boxes))
+      tasks.clear()
+      done .clear()
+      tasks.enqueue(FillContext(l, w, boxes, allowRotation = allowRotation))
       cont(timeout, multiplicity)
     }
 
@@ -210,8 +223,8 @@ object PLP {
   }
 
   def main(args: Array[String]): Unit = {
-    val packer = Packer(boxes)
-    allCatch.opt(args.map(_.toInt)).foreach {
+    val packer = Packer(boxes /* XXX TODO -- doesn't work , allowRotation = false */)
+    val res = allCatch.opt(args.map(_.toInt)).flatMap {
       case Array(l, w)                        => packer.run(l, w)
       case Array(l, w, timeout)               => packer.run(l, w, timeout)
       case Array(l, w, timeout, multiplicity) => packer.run(l, w, timeout, multiplicity)
@@ -227,6 +240,14 @@ object PLP {
             |- timeout is in milliseconds (default: 1 minute)
             |
             |""".stripMargin)
+        sys.exit(1)
+    }
+    res.foreach { pl =>
+      println("Done.")
+//      val flat = Locatable.flatten(pl)
+      EventQueue.invokeLater(new Runnable {
+        def run(): Unit = new PLPFrame(pl /* XXX TODO -- doesn't work , allowRotation = false */)
+      })
     }
   }
   
