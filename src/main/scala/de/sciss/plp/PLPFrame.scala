@@ -1,13 +1,18 @@
+package de.sciss.plp
+
 import java.awt.{ Frame, Graphics, Color }
 import java.awt.event.{ WindowEvent, WindowAdapter }
 import PLP.{ Plate, Locatable, Box }
 
-case class PLPFrame(b: Locatable, scale: Int=5) extends Frame { 
-  override def paint(g: Graphics) = drawops.foreach(_(g))
+final class PLPFrame(val b: Locatable, val scale: Int = 5) extends Frame {
+  override def paint(g: Graphics): Unit = drawOps.foreach(_(g))
+
   val tab = 10
-  val drawops = draw(b, tab, tab) ++ Seq(
+
+  val drawOps: Seq[(Graphics) => Unit] = draw(b, tab, tab) ++ Seq(
     (g: Graphics) => g.setColor(Color.black),
     (g: Graphics) => g.drawRect(tab * scale, tab * scale, b.l * scale, b.w * scale))
+
   object Colors {
     def next: Graphics => Unit = { val x = st.head; st = st.tail; x }
     var st: Stream[Graphics => Unit] = rotation
@@ -20,6 +25,7 @@ case class PLPFrame(b: Locatable, scale: Int=5) extends Frame {
       ((g: Graphics) => g.setColor(Color.green)) #::
       ((g: Graphics) => g.setColor(Color.cyan)) #:: rotation
   }
+
   def draw(b: Locatable, x: Int, y: Int, rot: Boolean=false): Seq[(Graphics) => Unit] = b match {
     case Box(name, l, w) if rot =>
       List(Colors.next,
@@ -42,7 +48,7 @@ case class PLPFrame(b: Locatable, scale: Int=5) extends Frame {
         (b: Locatable) => draw(b, x + w - b.w, y + l - b.l, rot),
         (b: Locatable) => draw(b, x + w - b.l, y, !rot),
         (b: Locatable) => draw(b, x + bs(0).w, y + bs(3).w, rot))
-      }.flatMap{ case (b, f) => f(b) }
+      }.flatMap{ case (b0, f) => f(b0) }
     case Plate(l, w, bs) =>
       bs.zip{ List(
         (b: Locatable) => draw(b, x, y, rot),
@@ -50,10 +56,13 @@ case class PLPFrame(b: Locatable, scale: Int=5) extends Frame {
         (b: Locatable) => draw(b, x + l - b.l, y + w - b.w, rot),
         (b: Locatable) => draw(b, x, y + w - b.l, !rot),
         (b: Locatable) => draw(b, x + bs(3).w, y + bs(0).w, rot))
-      }.flatMap{ case (b, f) => f(b) }
+      }.flatMap{ case (b0, f) => f(b0) }
   }
+
+  // ---- constructor ----
+
   addWindowListener(new WindowAdapter() {
-    override def windowClosing(e: WindowEvent) { removeNotify() }
+    override def windowClosing(e: WindowEvent): Unit = removeNotify()
   })
   setSize((tab * 2 + b.l) * scale, (tab * 2 + b.w) * scale)
   setVisible(true)
