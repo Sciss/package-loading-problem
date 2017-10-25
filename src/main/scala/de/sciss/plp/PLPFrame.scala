@@ -28,7 +28,6 @@ final class PLPFrame(val b: Locatable, val scale: Int = 5, allowRotation: Boolea
 
   def draw(b: Locatable, x: Int, y: Int, rot: Boolean = false): Seq[(Graphics) => Unit] = b match {
     case Box(name, l, w) if rot =>
-      println(s"Rotated: $name")
       List(Colors.next,
            (g: Graphics) => g.fillRect(x * scale, y * scale, w * scale, l * scale),
            (g: Graphics) => g.setColor(Color.black),
